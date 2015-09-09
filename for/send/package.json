@@ -1,0 +1,8 @@
+{
+  "name": "0-static-for-send",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "send": "^0.13.0"
+  }
+}
