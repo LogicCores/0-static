@@ -18,9 +18,42 @@ exports.forLib = function (LIB) {
                             LIB._.merge(config, instanceConfig);
                             LIB._.merge(config, aspectConfig);
 
-                            return LIB.Promise.resolve(
-                                LIB.path.join(config.basePath, config.namespace || "")
-                            );
+                            if (config.loaderPath || config.basePath) {
+                                return LIB.Promise.resolve(
+                                    LIB.path.join(
+                                        config.loaderPath || config.basePath,
+                                        config.namespace || ""
+                                    )
+                                );
+                            }
+                            return LIB.Promise.resolve(null);
+                        },
+                        paths: function () {
+
+                            var config = {};
+                            LIB._.merge(config, defaultConfig);
+                            LIB._.merge(config, instanceConfig);
+                            LIB._.merge(config, aspectConfig);
+                            
+                            if (config.sets) {
+                                var sets = {};
+                                Object.keys(config.sets).forEach(function (alias) {
+                                    sets[alias] = LIB.path.join(
+                                        config.sets[alias].loaderPath || config.sets[alias].basePath,
+                                        config.namespace || ""
+                                    )
+                                });
+                                return LIB.Promise.resolve(sets);
+                            } else
+                            if (config.loaderPath || config.basePath) {
+                                return LIB.Promise.resolve({
+                                    "": LIB.path.join(
+                                        config.loaderPath || config.basePath,
+                                        config.namespace || ""
+                                    )
+                                });
+                            }
+                            return LIB.Promise.resolve(null);
                         }
                     });
                 }
