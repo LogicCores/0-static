@@ -10,8 +10,9 @@ exports.app = function (options) {
             return options.paths[alias]
         });
         function tryNextPath () {
+            var basePath = paths.shift();
             return SEND(req, uri, {
-        		root: paths.shift()
+        		root: basePath
         	}).on("error", function (err) {
                 if (paths.length === 0) {
                     return next(err);
