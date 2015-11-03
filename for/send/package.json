@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "send": "^0.13.0"
+    "rework": "^1.0.1",
+    "rework-plugin-url": "^1.1.0"
   }
 }
