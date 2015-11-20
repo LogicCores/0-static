@@ -35,36 +35,76 @@ exports.forLib = function (LIB) {
                     /\.css$/.test(uri)
                 ) {
 
-                    const REWORK = require("rework");
-                    const REWORK_PLUGIN_URL = require("rework-plugin-url");
+                    var distPath = LIB.path.join(options.cachePath, uri);
 
-                    var sourcePath = LIB.path.join(basePath, uri);
-                    
-                    return LIB.fs.readFile(sourcePath, "utf8", function (err, data) {
-                        if (err) return next(err);
+                    function serveDistPath () {
+                        return LIB.send(req, LIB.path.basename(distPath), {
+                    		root: LIB.path.dirname(distPath),
+                    		maxAge: options.clientCacheTTL || 0
+                    	}).on("error", next).pipe(res);
+                    }
 
-        				var output = REWORK(data, {
-        					source: sourcePath
-        				})
-        				.use(REWORK_PLUGIN_URL(function (url) {
-                            // Rewrite all absolute urls by prepending the subUri.
-        					if (/^\//.test(url)) {
-        					    url = options.subUri + url;
+                    return LIB.fs.existsAsync(distPath).then(function (exists) {
+
+                        if (
+                            exists &&
+                            options.alwaysRebuild === false
+                        ) {
+                            if (LIB.VERBOSE) console.log("Using cached processed file for uri '" + uri + "' from cache '" + distPath + "'");
+    
+                            return serveDistPath();
+                        }
+    
+                        const REWORK = require("rework");
+                        const REWORK_PLUGIN_URL = require("rework-plugin-url");
+    
+                        var sourcePath = LIB.path.join(basePath, uri);
+                        
+                        return LIB.fs.readFileAsync(sourcePath, "utf8").then(function (data) {
+
+            				var output = REWORK(data, {
+            					source: sourcePath
+            				})
+            				.use(REWORK_PLUGIN_URL(function (url) {
+                                // Rewrite all absolute urls by prepending the subUri.
+            					if (/^\//.test(url)) {
+            					    url = options.subUri + url;
+            					}
+            					return url;
+            				}));
+
+                            var css = output.toString();
+    
+        					function checkIfChanged () {
+        						return LIB.fs.existsAsync(distPath).then(function (exists) {
+        							if (!exists) return true;
+        							return LIB.fs.readFileAsync(distPath, "utf8").then(function (existingData) {
+        								if (existingData === css) {
+        									return false;
+        								}
+        								return true;
+        							});
+        						});
         					}
-        					return url;
-        				}));
-        				
-        				res.writeHead(200, {
-        				    "Content-Type": "text/css"
-        				});
-        				res.end(output.toString());
-        				return;
-                    });
+        					
+        					return checkIfChanged().then(function (changed) {
+        						if (!changed) return null;
+
+                                if (LIB.VERBOSE) console.log("Writing processed file for uri '" + uri + "' to cache '" + distPath + "'");
+    
+        				        return LIB.fs.outputFileAsync(distPath, css, "utf8");
+        					}).then(function () {
+        					    
+        					    return serveDistPath();
+        					});
+                        });
+                    }).catch(next);
                 }
 
 
                 return LIB.send(req, uri, {
-            		root: basePath
+            		root: basePath,
+            		maxAge: options.clientCacheTTL
             	}).on("error", function (err) {
                     if (paths.length === 0) {
                         // We silence the error and continue.
